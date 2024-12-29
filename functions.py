@@ -49,6 +49,11 @@ def read_images(filenames, height=None, width=None):
         images = [img.resize((width, height)) for img in images]
     return images
 
+def minmax(a):
+    a = np.asarray(a)
+    a = (a - a.min()) / (a.max() - a.min())
+    return a
+
 def images_to_array(images):
     return np.asarray([np.asarray(img) for img in images])
 
