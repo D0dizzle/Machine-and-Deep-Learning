@@ -232,30 +232,25 @@ def stratified_k_fold(data, y, k):
 
     categories = np.unique(np.argmax(y, axis=1))
     categorie_lists = [[] for category in categories]
-    for i, element in enumerate(data):
+    for i in range(len(data)):
         category = np.argmax(y[i])
-        categorie_lists[category].append(element)
-        print(f"{i}. Länge der Kategorie-Listen")
-        print(len(categorie_lists[category]))
+        categorie_lists[category].append(i)
 
     image_folds = [[] for fold in range(k)]
     label_folds = [[] for fold in range(k)]
 
     fold_index = 0  # Start beim ersten Fold
     for category in range(len(categorie_lists)):
-        print(len(categorie_lists))
-        for element in categorie_lists[category]:
-            image_folds[fold_index].append(element)
-            label_folds[fold_index].append(y[np.where(np.argmax(y, axis=1) == category)[0][0]])
+        for index in categorie_lists[category]:
+            image_folds[fold_index].append(data[index])
+            label_folds[fold_index].append(y[index])
             fold_index += 1 
             if fold_index == k:  # Wenn wir den letzten Fold erreicht haben, fange wieder bei 0 an
                 fold_index = 0
 
     for i in range(k):
         image_folds[i] = images_to_array(image_folds[i])
-        print(len(image_folds[i]))
         label_folds[i] = label_to_array(label_folds[i])
-        print(len(label_folds[i]))
 
     return image_folds, label_folds
 
