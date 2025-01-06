@@ -236,6 +236,11 @@ def stratified_k_fold(data, y, k):
         category = np.argmax(y[i])
         categorie_lists[category].append(i)
 
+    for category in range(len(categorie_lists)):
+        indices = np.arange(len(categorie_lists[category]))
+        np.random.shuffle(indices)
+        categorie_lists[category] = [categorie_lists[category][i] for i in indices]
+
     image_folds = [[] for fold in range(k)]
     label_folds = [[] for fold in range(k)]
 
