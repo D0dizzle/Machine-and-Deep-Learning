@@ -7,6 +7,7 @@ from PIL import Image
 import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, Dropout, Flatten
+from tensorflow.keras.callbacks import EarlyStopping
 
 def get_filenames_labels(folder):
     ''' 
@@ -259,7 +260,7 @@ def stratified_k_fold(data, y, k):
 
     return image_folds, label_folds
 
-def build_model(epochs: int, fold_x_train, fold_y_train, fold_x_val, fold_y_val, input_shape: dict):
+def build_model(epochs: int, fold_x_train, fold_y_train, fold_x_val, fold_y_val, fold_x_test, fold_y_test, input_shape: dict):
     ''' Builds and trains the model based on a specified amount of epochs.
         Uses fixed propagation, dropout and activation functions. 
         Evaluates the model after training and returns results and accuracy
@@ -287,6 +288,12 @@ def build_model(epochs: int, fold_x_train, fold_y_train, fold_x_val, fold_y_val,
         model_accuracy: float
             A float containing the evaluated accuracy of the trained model
     '''
+
+    early_stopping = EarlyStopping(
+    monitor='val_loss',
+    patience=3,
+    restore_best_weights=True
+    )
     # CNN model
     inputs = Input(shape=(input_shape.values()))
     hidden = Conv2D(filters=32, kernel_size=(3,3), strides=(1,1), padding='valid', activation='relu')(inputs)
@@ -304,7 +311,7 @@ def build_model(epochs: int, fold_x_train, fold_y_train, fold_x_val, fold_y_val,
 
     # Configuration of the training process
     cnn.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
-    history = cnn.fit(x=fold_x_train, y=fold_y_train, epochs=epochs, batch_size=32)
+    history = cnn.fit(x=fold_x_train, y=fold_y_train,validation_data=(fold_x_val, fold_y_val), epochs=epochs, batch_size=32, callbacks=[early_stopping])
     # Fit model
-    model_accuracy = cnn.evaluate(x=fold_x_val, y=fold_y_val, verbose=0)[1]
+    model_accuracy = cnn.evaluate(x=fold_x_test, y=fold_y_test, verbose=0)[1]
     return history, model_accuracy
