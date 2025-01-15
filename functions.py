@@ -232,7 +232,11 @@ def stratified_k_fold(data, y, k):
     '''
 
     categories = np.unique(np.argmax(y, axis=1))
+    print(categories)
     categorie_lists = [[] for category in categories]
+    
+    # for each entry in data:
+    # with argmax determine in which label-"column" the "1" is, append the index(i) of the data to the corresponding category
     for i in range(len(data)):
         category = np.argmax(y[i])
         categorie_lists[category].append(i)
@@ -301,8 +305,9 @@ def build_model(epochs: int, fold_x_train, fold_y_train, fold_x_val, fold_y_val,
     hidden = MaxPooling2D(pool_size=(2,2))(hidden)
     hidden = Dropout(rate=0.25)(hidden)
     hidden = Conv2D(filters=64, kernel_size=(3,3), strides=(1,1), padding='valid', activation='relu')(hidden)
+    hidden = Conv2D(filters=128, kernel_size=(3,3), strides=(1,1), padding='valid', activation='relu')(hidden)
     hidden = MaxPooling2D(pool_size=(2,2))(hidden)
-    hidden = Dropout(rate=0.25)(hidden)
+    hidden = Dropout(rate=0.35)(hidden)
     hidden = Flatten()(hidden)
     hidden = Dense(units=256, activation='relu')(hidden)
     hidden = Dropout(rate=0.25)(hidden)
@@ -314,4 +319,4 @@ def build_model(epochs: int, fold_x_train, fold_y_train, fold_x_val, fold_y_val,
     history = cnn.fit(x=fold_x_train, y=fold_y_train,validation_data=(fold_x_val, fold_y_val), epochs=epochs, batch_size=32, callbacks=[early_stopping])
     # Fit model
     model_accuracy = cnn.evaluate(x=fold_x_test, y=fold_y_test, verbose=0)[1]
-    return history, model_accuracy
+    return history, model_accuracy, cnn
