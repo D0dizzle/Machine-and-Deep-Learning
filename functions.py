@@ -320,3 +320,7 @@ def build_model(epochs: int, fold_x_train, fold_y_train, fold_x_val, fold_y_val,
     # Fit model
     model_accuracy = cnn.evaluate(x=fold_x_test, y=fold_y_test, verbose=0)[1]
     return history, model_accuracy, cnn
+
+def accuracy(actuals, preds):
+    actuals, preds = np.asarray(actuals), np.asarray(preds)
+    return np.mean(np.ravel(actuals) == np.ravel(preds))
