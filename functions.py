@@ -144,6 +144,45 @@ def label_to_array(labels: List[str]) -> np.ndarray:
     '''
     return np.asarray(labels)
 
+def augment_images(images, labels):
+    ''' 
+    Augments the images using numpy.
+
+    Arguments
+    --------
+    images : numpy.ndarray
+        A numpy array containing the original images.
+    labels : numpy.ndarray
+        A numpy array containing the labels of the original images.
+
+    Returns
+    -------
+    aug_images : numpy.ndarray
+        A numpy array containing the original and augmentated images.
+    aug_labels : numpy.ndarray
+        A numpy array containing the labels of the original and augmentated images.
+    '''
+    aug_images = []
+    aug_labels = []
+    for i, row in enumerate(images):
+        # Original
+        aug_images.append(images[i])
+        aug_labels.append(labels[i])
+        
+        # 90-degree rotation (to the right)
+        aug_images.append(np.rot90(row, k=1))
+        aug_labels.append(labels[i])
+        
+        # 180-degree rotation (upside down)
+        aug_images.append(np.rot90(row, k=2))
+        aug_labels.append(labels[i])
+        
+        # 270-degree rotation (to the left)
+        aug_images.append(np.rot90(row, k=3))
+        aug_labels.append(labels[i])
+    
+    return aug_images, aug_labels
+
 #### Encoding the labels with OneHotEncoding ####
 def ownOneHotEncoder(labels, categories):
     ''' 
