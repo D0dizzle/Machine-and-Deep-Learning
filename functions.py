@@ -8,7 +8,9 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, Dropout, Flatten
 from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.optimizers import RMSprop
 
+#### Extracting and Formatting input data ####
 def get_filenames_labels(folder):
     ''' 
     Detects categories, filenames and labels of images
@@ -29,6 +31,7 @@ def get_filenames_labels(folder):
     categories = [f.name for f in os.scandir(folder) if f.is_dir()]
     filenames = []
     labels = []
+
     for category in categories: 
         subfolder = os.path.join(folder, category)
         fnames = get_filenames(subfolder)
@@ -71,9 +74,8 @@ def flatten_lst(lst: List[List[Any]]) -> List[Any]:
     flattened_list : list
         A one-dimensional list containing all elements of the input list.
     '''
-    return [item for items in lst for item in items] # items = innere Liste in der äußeren Liste item = Element in innerer Liste
+    return [item for items in lst for item in items]
 
-# height: Optional[int]=None bedeutet, dass height entweder ein Integer ist, oder bei None None bleibt!
 def read_images(filenames: List[str], height: Optional[int]=None, width: Optional[int]=None) -> List: 
     ''' 
     Extracts the image data of each imagefile in the specified input list into a list of ImageFile objects.
@@ -100,12 +102,8 @@ def read_images(filenames: List[str], height: Optional[int]=None, width: Optiona
     if (not height is None) and (not width is None):
         images = [img.resize((width, height)) for img in images]
     return images
-#brauchen wir den?
-def minmax(a):
-    a = np.asarray(a)
-    a = (a - a.min()) / (a.max() - a.min())
-    return a
 
+#### Transforming lists into numpy arrays ####
 def images_to_array(images: List):
     ''' 
     Transforms the data of each ImageFile object in the input list into 4-dimensional numpy array.
@@ -146,7 +144,7 @@ def label_to_array(labels: List[str]) -> np.ndarray:
     '''
     return np.asarray(labels)
 
-
+#### Encoding the labels with OneHotEncoding ####
 def ownOneHotEncoder(labels, categories):
     ''' 
     Encodes the labels (strings) using One-Hot Encoding into a 2D numpy array.
@@ -177,6 +175,7 @@ def ownOneHotEncoder(labels, categories):
     encoded_labels = df.to_numpy()
     return encoded_labels
 
+#### Functions for k-fold cross validation ####
 def slice_data_in_folds(data, y, k: int):
     ''' 
     Shuffles and splits the arrays of images and the array of labels in k-folds
@@ -232,11 +231,8 @@ def stratified_k_fold(data, y, k):
     '''
 
     categories = np.unique(np.argmax(y, axis=1))
-    print(categories)
     categorie_lists = [[] for category in categories]
     
-    # for each entry in data:
-    # with argmax determine in which label-"column" the "1" is, append the index(i) of the data to the corresponding category
     for i in range(len(data)):
         category = np.argmax(y[i])
         categorie_lists[category].append(i)
@@ -264,6 +260,7 @@ def stratified_k_fold(data, y, k):
 
     return image_folds, label_folds
 
+#### Function to build and train the model ####
 def build_model(epochs: int, fold_x_train, fold_y_train, fold_x_val, fold_y_val, fold_x_test, fold_y_test, input_shape: dict):
     ''' Builds and trains the model based on a specified amount of epochs.
         Uses fixed propagation, dropout and activation functions. 
@@ -295,17 +292,21 @@ def build_model(epochs: int, fold_x_train, fold_y_train, fold_x_val, fold_y_val,
 
     early_stopping = EarlyStopping(
     monitor='val_loss',
-    patience=3,
+    patience=8,
     restore_best_weights=True
     )
+    optimizer = RMSprop(learning_rate=0.0001)
     # CNN model
     inputs = Input(shape=(input_shape.values()))
     hidden = Conv2D(filters=32, kernel_size=(3,3), strides=(1,1), padding='valid', activation='relu')(inputs)
     hidden = Conv2D(filters=32, kernel_size=(3,3), strides=(1,1), padding='valid', activation='relu')(hidden)
     hidden = MaxPooling2D(pool_size=(2,2))(hidden)
     hidden = Dropout(rate=0.25)(hidden)
+    hidden = Conv2D(filters=32, kernel_size=(3,3), strides=(1,1), padding='valid', activation='relu')(hidden)
     hidden = Conv2D(filters=64, kernel_size=(3,3), strides=(1,1), padding='valid', activation='relu')(hidden)
-    hidden = Conv2D(filters=128, kernel_size=(3,3), strides=(1,1), padding='valid', activation='relu')(hidden)
+    hidden = MaxPooling2D(pool_size=(2,2))(hidden)
+    hidden = Dropout(rate=0.3)(hidden)
+    hidden = Conv2D(filters=64, kernel_size=(3,3), strides=(1,1), padding='valid', activation='relu')(hidden)
     hidden = MaxPooling2D(pool_size=(2,2))(hidden)
     hidden = Dropout(rate=0.35)(hidden)
     hidden = Flatten()(hidden)
@@ -315,12 +316,29 @@ def build_model(epochs: int, fold_x_train, fold_y_train, fold_x_val, fold_y_val,
     cnn = Model(inputs=inputs, outputs=output, name='CNN_CBP_Class')
 
     # Configuration of the training process
-    cnn.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+    cnn.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['accuracy'])
     history = cnn.fit(x=fold_x_train, y=fold_y_train,validation_data=(fold_x_val, fold_y_val), epochs=epochs, batch_size=32, callbacks=[early_stopping])
     # Fit model
     model_accuracy = cnn.evaluate(x=fold_x_test, y=fold_y_test, verbose=0)[1]
     return history, model_accuracy, cnn
 
+#### Calculating the accuracy of the prediction ####
 def accuracy(actuals, preds):
+    '''
+    Calculates the accuracy by comparing the actual categories with the predicted categories.
+
+    Arguments
+    --------
+    actuals: numpy.ndarray
+        A 1D array containing the indices of the actual category in a OneHotEncoded vector.
+    preds: numpy.ndarray
+        A 1D array containing the indices of the predicted category.
+
+    Returns
+    --------
+    accuracy : float
+        The proportion of correct predictions. For each match of "actuals" and "preds" counts as 1, each mismatch counts as 0.
+        The result is the mean value of these comparisons.
+    '''
     actuals, preds = np.asarray(actuals), np.asarray(preds)
     return np.mean(np.ravel(actuals) == np.ravel(preds))
