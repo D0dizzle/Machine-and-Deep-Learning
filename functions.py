@@ -157,9 +157,9 @@ def augment_images(images, labels):
 
     Returns
     -------
-    aug_images : numpy.ndarray
+    aug_images : list
         A numpy array containing the original and augmentated images.
-    aug_labels : numpy.ndarray
+    aug_labels : list
         A numpy array containing the labels of the original and augmentated images.
     '''
     aug_images = []
