@@ -315,10 +315,11 @@ def slice_data_in_folds(data, y, k: int):
     y_folds: list[numpy.ndarray]
         A list containing k arrays each with a set of labels (2D array).
     '''
-
+    # die indices sind ein array von 0 bis "Anzahl Einträge in data -1"
+    # genauer: data.shape[0] ist die Anzahl an Zeilen in dem Array "data"
     indices = np.arange(data.shape[0])
-    np.random.shuffle(indices)
-
+    np.random.shuffle(indices) # mischen
+    #data wird mit den gemischten Indices neu erstellt
     data = data[indices]
     y = y[indices]
 
@@ -327,7 +328,11 @@ def slice_data_in_folds(data, y, k: int):
     return image_folds, y_folds
 
 # Die Daten und Labels werden zufällig gemischt (np.random.shuffle) und in k Teile aufgeteilt (np.array_split).
-
+# Beispiel: data = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+# indices = [0, 1, 2]
+# nach dem shuffle: indices = [1, 0, 2] -> np.random.shuffle ist in-place und muss nicht in Variable gespeichert werden
+# data = data[indices] -> data = [[4, 5, 6], [1, 2, 3], [7, 8, 9]]
+# -> gleiches mit y :)
 
 # Teilt die Daten in Folds mit gleichmäßiger Verteilung der Kategorien.
 def stratified_k_fold(data, y, k):
@@ -350,25 +355,53 @@ def stratified_k_fold(data, y, k):
     y_folds: list[numpy.ndarray]
         A list containing k arrays each with a set of labels (2D array).
     '''
-
+    # np.argmax(y, axis=1) -> gibt für jeden Eintrag in y an, an welchem Index der Wert maximal ist
+    # Beispiel: y = [[1, 0, 0, 0], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1]]
+    # np.argmax(y, axis=1) = [0, 1, 0, 3] -> für [1, 0, 0, 0] Index = 0 für [0, 0, 0, 1] Index = 3
+    # np.unqiue(np.argmax(y, axis=1)) -> [0, 1, 3], zweiter 0-Wert wird ignoriert, da nur jeder unique Wert genommen wird
     categories = np.unique(np.argmax(y, axis=1))
     categorie_lists = [[] for category in categories]
     
+    # category für 4 Kategorien ist = [0, 1, 2, 3]
+    # für i in allen data-Einträgen wird die Kategorie ermittelt und der Index des Eintrags aus data
+    # in die richtige "sub-Liste" gespeichert
+    # Beispiel: y[i] = [0, 1, 0, 0] -> np.argmax(y[i]) = 1 -> categorie_lists[1].append(Index des Data-Eintrags)
     for i in range(len(data)):
-        category = np.argmax(y[i])
+        category = np.argmax(y[i])  
         categorie_lists[category].append(i)
     
     # Jede Kategorie wird separat in eine Liste gepackt.
-    # Anschließend werden die Indizes der Bilder auf die Folds verteilt.
-
+    # jetzt wird jede Kategorie in sich geshuffelt:
+    # Für jede "sub-Liste" in categorie_lists:
+    # 1. Erstellen wir ein Array von Indizes (0 bis Länge der Sub-Liste - 1),
+    # 2. Diese Indizes werden gemischt (np.random.shuffle),
+    # 3. Danach wird die "sub-Liste" in der Reihenfolge der geshuffelten Indizes neu befüllt.
+    #
+    # Beispiel: categorie_lists[0] = [0, 4, 6, 12] -> indices = [0, 1, 2, 3]
+    # np.random.shuffle(indices) = [1, 3, 2, 0]
+    # categorie_lists[0] = [categorie_lists[0][i] for i in [1, 3, 2, 0]] 
+    # -> [categorie_lists[0][1], categorie_lists[0][3], categorie_lists[0][2], categorie_lists[0][0]] 
+    # -> [4, 12, 6, 0]
     for category in range(len(categorie_lists)):
         indices = np.arange(len(categorie_lists[category]))
         np.random.shuffle(indices)
-        categorie_lists[category] = [categorie_lists[category][i] for i in indices]
+        categorie_lists[category] = [categorie_lists[category][i] for i in indices] ### wichtig!! i ist KEIN Iterator, sondern der Wert im indices Array!
 
+    # Anschließend werden die Indizes der Bilder auf die Folds verteilt.
     image_folds = [[] for fold in range(k)]
     label_folds = [[] for fold in range(k)]
 
+    # categorie_lists[category] enthält die Indizes für die Elemente in Data und y 
+    # Verteilung der Datenpunkte auf die Folds:
+    # Mehrere Iterationen:
+    # 1. Über alle Kategorien in categorie_lists iterieren -> jede Kategorie wird nacheinander betrachtet.
+    # 2. Für jeden Index in der jeweiligen Kategorie:
+    #    a. Das Bild und Label, die zu diesem Index gehören, werden dem aktuellen Fold hinzugefügt.
+    #    b. Der fold_index wird um 1 erhöht, um den nächsten Fold vorzubereiten.
+    #    c. Wenn fold_index == k, bedeutet das, dass alle Folds einmal durchlaufen wurden. 
+    #       -> Wir setzen fold_index zurück auf 0, um wieder beim ersten Fold weiterzumachen.
+    # 3. Dadurch wird sichergestellt, dass die Daten gleichmäßig auf alle Folds verteilt werden, 
+    #    auch wenn eine Kategorie mehr Datenpunkte hat als die anderen.
     fold_index = 0  # Start beim ersten Fold
     for category in range(len(categorie_lists)):
         for index in categorie_lists[category]:
@@ -377,7 +410,7 @@ def stratified_k_fold(data, y, k):
             fold_index += 1 
             if fold_index == k:  # Wenn wir den letzten Fold erreicht haben, fange wieder bei 0 an
                 fold_index = 0
-
+    # für jeden Fold werden die "Sub-Liste" in ein Array umgewandelt
     for i in range(k):
         image_folds[i] = images_to_array(image_folds[i])
         label_folds[i] = label_to_array(label_folds[i])
