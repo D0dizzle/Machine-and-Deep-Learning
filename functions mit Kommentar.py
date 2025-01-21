@@ -367,7 +367,7 @@ def stratified_k_fold(data, y, k):
     # in die richtige "sub-Liste" gespeichert
     # Beispiel: y[i] = [0, 1, 0, 0] -> np.argmax(y[i]) = 1 -> categorie_lists[1].append(Index des Data-Eintrags)
     for i in range(len(data)):
-        category = np.argmax(y[i])  
+        category = np.argmax(y[i])
         categorie_lists[category].append(i)
     
     # Jede Kategorie wird separat in eine Liste gepackt.
@@ -382,8 +382,11 @@ def stratified_k_fold(data, y, k):
     # categorie_lists[0] = [categorie_lists[0][i] for i in [1, 3, 2, 0]] 
     # -> [categorie_lists[0][1], categorie_lists[0][3], categorie_lists[0][2], categorie_lists[0][0]] 
     # -> [4, 12, 6, 0]
+    # bessere Schleife (macht exakt das gleiche wie die andere Schleife):
+    # for category in range(len(category_lists)):
+    #     np.random.shuffle(categorie_lists[category])
     for category in range(len(categorie_lists)):
-        indices = np.arange(len(categorie_lists[category]))
+        indices = np.arange(len(categorie_lists[category])) 
         np.random.shuffle(indices)
         categorie_lists[category] = [categorie_lists[category][i] for i in indices] ### wichtig!! i ist KEIN Iterator, sondern der Wert im indices Array!
 
@@ -407,7 +410,7 @@ def stratified_k_fold(data, y, k):
         for index in categorie_lists[category]:
             image_folds[fold_index].append(data[index])
             label_folds[fold_index].append(y[index])
-            fold_index += 1 
+            fold_index += 1
             if fold_index == k:  # Wenn wir den letzten Fold erreicht haben, fange wieder bei 0 an
                 fold_index = 0
     # für jeden Fold werden die "Sub-Liste" in ein Array umgewandelt
